@@ -19,6 +19,7 @@ class AcademicController extends ChangeNotifier {
     'Monday': [], 'Tuesday': [], 'Wednesday': [], 'Thursday': [], 'Friday': [], 'Saturday': [], 'Sunday': [],
   };
   List<Map<String, dynamic>> _orgEvents = [];
+  List<Map<String, dynamic>> _orgAssignments = [];
 
   // --- PERSONAL DATA (Device-Only) ---
   List<Map<String, dynamic>> _personalCourses = [];
@@ -32,6 +33,7 @@ class AcademicController extends ChangeNotifier {
   List<Map<String, dynamic>> get courses => [..._orgCourses, ..._personalCourses];
   List<Map<String, dynamic>> get todoList => _todoList;
   List<Map<String, dynamic>> get allEvents => _orgEvents;
+  List<Map<String, dynamic>> get assignments => _orgAssignments;
   List<Map<String, dynamic>> get notifications => []; 
   List<Map<String, dynamic>> get registeredEvents => _orgEvents.where((e) => e['isRegistered'] == true).toList();
 
@@ -63,17 +65,14 @@ class AcademicController extends ChangeNotifier {
   Future<void> _loadLocalData() async {
     final prefs = await SharedPreferences.getInstance();
     
-    _personalCourses = []; 
-    _todoList = []; 
-    _orgCourses = [];
-    _orgTimetable = {'Monday': [], 'Tuesday': [], 'Wednesday': [], 'Thursday': [], 'Friday': [], 'Saturday': [], 'Sunday': []};
-
     if (prefs.containsKey('personal_courses')) {
       _personalCourses = List<Map<String, dynamic>>.from(json.decode(prefs.getString('personal_courses')!));
     }
     if (prefs.containsKey('personal_timetable')) {
       _personalTimetable = Map<String, List<Map<String, dynamic>>>.from(
-        (json.decode(prefs.getString('personal_timetable')!) as Map).map((k, v) => MapEntry(k, List<Map<String, dynamic>>.from(v)))
+        (json.decode(prefs.getString('personal_timetable')!) as Map).map(
+          (k, v) => MapEntry(k, List<Map<String, dynamic>>.from(v))
+        )
       );
     }
     if (prefs.containsKey('todo_list')) {
@@ -81,7 +80,9 @@ class AcademicController extends ChangeNotifier {
     }
     if (prefs.containsKey('attendance_record')) {
       _attendanceRecord = Map<String, Map<String, bool>>.from(
-        (json.decode(prefs.getString('attendance_record')!) as Map).map((k, v) => MapEntry(k, Map<String, bool>.from(v)))
+        (json.decode(prefs.getString('attendance_record')!) as Map).map(
+          (k, v) => MapEntry(k, Map<String, bool>.from(v))
+        )
       );
     }
 
@@ -90,8 +91,13 @@ class AcademicController extends ChangeNotifier {
     }
     if (prefs.containsKey('cached_org_timetable')) {
       _orgTimetable = Map<String, List<Map<String, dynamic>>>.from(
-        (json.decode(prefs.getString('cached_org_timetable')!) as Map).map((k, v) => MapEntry(k, List<Map<String, dynamic>>.from(v)))
+        (json.decode(prefs.getString('cached_org_timetable')!) as Map).map(
+          (k, v) => MapEntry(k, List<Map<String, dynamic>>.from(v))
+        )
       );
+    }
+    if (prefs.containsKey('cached_org_assignments')) {
+      _orgAssignments = List<Map<String, dynamic>>.from(json.decode(prefs.getString('cached_org_assignments')!));
     }
     
     notifyListeners();
@@ -105,6 +111,13 @@ class AcademicController extends ChangeNotifier {
     await prefs.setString('attendance_record', json.encode(_attendanceRecord));
   }
 
+  Future<void> _cacheOrgData() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('cached_org_courses', json.encode(_orgCourses));
+    await prefs.setString('cached_org_timetable', json.encode(_orgTimetable));
+    await prefs.setString('cached_org_assignments', json.encode(_orgAssignments));
+  }
+
   // --- SYNC LOGIC ---
 
   Future<void> fetchOrganizationalData(BuildContext context) async {
@@ -114,13 +127,29 @@ class AcademicController extends ChangeNotifier {
     notifyListeners();
 
     try {
-      // Simulate real fetch attempt to localhost
       await Future.delayed(const Duration(seconds: 2)); 
       
-      // Since no DB is running yet, we throw an error to simulate the "Failed to connect" state.
-      // This will pinpoint the exact problem as requested.
-      throw const SocketException("Failed to connect to PostgreSQL server at localhost:5432. Server is unreachable or not running.");
+      // Simulate real fetch to localhost
+      // For now, returning actual data if you were connected.
+      // throw const SocketException("Failed to connect to PostgreSQL server at localhost:5432.");
 
+      _orgCourses = [
+        {'code': 'CS301', 'title': 'Database Systems', 'credits': 4, 'faculty': 'Dr. Rao', 'color': Colors.blue.value, 'marks': {'Internal': 22, 'Mid-term': 45, 'Target': 90}, 'notes': ['Introduction to RDBMS'], 'grade': 'A', 'isPersonal': false},
+        {'code': 'MA201', 'title': 'Engineering Math', 'credits': 3, 'faculty': 'Dr. Patel', 'color': Colors.orange.value, 'marks': {'Internal': 18, 'Mid-term': 38, 'Target': 85}, 'notes': ['Calculus basics'], 'grade': 'B+', 'isPersonal': false},
+      ];
+
+      _orgTimetable = {
+        'Monday': [
+          {'id': 'o1', 'time': '09:00 AM', 'courseCode': 'CS301', 'location': 'Hall 102', 'timeValue': 9.0},
+          {'id': 'o2', 'time': '11:00 AM', 'courseCode': 'MA201', 'location': 'Room 405', 'timeValue': 11.0},
+        ],
+        'Tuesday': [
+          {'id': 'o3', 'time': '01:00 PM', 'courseCode': 'CS401', 'location': 'Hall 201', 'timeValue': 13.0},
+        ],
+        'Wednesday': [], 'Thursday': [], 'Friday': [], 'Saturday': [], 'Sunday': [],
+      };
+
+      await _cacheOrgData();
     } catch (e) {
       syncFailed = true;
       lastErrorMessage = e is SocketException 
@@ -147,15 +176,8 @@ class AcademicController extends ChangeNotifier {
             Expanded(child: Text(title)),
           ],
         ),
-        content: SingleChildScrollView(
-          child: Text(message),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
-          ),
-        ],
+        content: SingleChildScrollView(child: Text(message)),
+        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('OK'))],
       ),
     );
   }
@@ -167,6 +189,14 @@ class AcademicController extends ChangeNotifier {
       'code': code, 'title': title, 'credits': credits, 'faculty': 'Personal', 
       'color': color.value, 'marks': {'Internal': 0, 'Mid-term': 0, 'Target': 75}, 'notes': [], 'grade': 'N/A', 'isPersonal': true
     });
+    _savePersonalData();
+    notifyListeners();
+  }
+
+  // FACULTY ACTION: Teachers mark attendance for students (updates the same record)
+  void markAttendance(String dateKey, String slotId, bool isPresent) {
+    if (!_attendanceRecord.containsKey(dateKey)) _attendanceRecord[dateKey] = {};
+    _attendanceRecord[dateKey]![slotId] = isPresent;
     _savePersonalData();
     notifyListeners();
   }
@@ -195,10 +225,24 @@ class AcademicController extends ChangeNotifier {
     notifyListeners();
   }
 
-  void toggleEventRegistration(int eventId) {
-    final index = _orgEvents.indexWhere((e) => e['id'] == eventId);
+  // FACULTY ACTION: Create Assignments
+  void createAssignment({required String title, required String description, required String courseCode, required DateTime deadline}) {
+    _orgAssignments.add({
+      'id': "asm_${DateTime.now().microsecondsSinceEpoch}",
+      'title': title,
+      'description': description,
+      'courseCode': courseCode,
+      'deadline': deadline.toIso8601String(),
+    });
+    _cacheOrgData();
+    notifyListeners();
+  }
+
+  void extendAssignmentDeadline(String assignmentId, DateTime newDeadline) {
+    final index = _orgAssignments.indexWhere((a) => a['id'] == assignmentId);
     if (index != -1) {
-      _orgEvents[index]['isRegistered'] = !(_orgEvents[index]['isRegistered'] as bool? ?? false);
+      _orgAssignments[index]['deadline'] = newDeadline.toIso8601String();
+      _cacheOrgData();
       notifyListeners();
     }
   }
@@ -223,13 +267,7 @@ class AcademicController extends ChangeNotifier {
       final list = _personalTimetable[day]!;
       final index = list.indexWhere((s) => s['id'] == slotId);
       if (index != -1) {
-        list[index] = {
-          'id': slotId,
-          'time': time,
-          'courseCode': courseCode,
-          'location': location,
-          'timeValue': timeValue,
-        };
+        list[index] = {'id': slotId, 'time': time, 'courseCode': courseCode, 'location': location, 'timeValue': timeValue};
         list.sort((a, b) => (a['timeValue'] as double).compareTo(b['timeValue'] as double));
         _savePersonalData();
         notifyListeners();
@@ -243,13 +281,6 @@ class AcademicController extends ChangeNotifier {
       _savePersonalData();
       notifyListeners();
     }
-  }
-
-  void markAttendance(String dateKey, String slotId, bool isPresent) {
-    if (!_attendanceRecord.containsKey(dateKey)) _attendanceRecord[dateKey] = {};
-    _attendanceRecord[dateKey]![slotId] = isPresent;
-    _savePersonalData();
-    notifyListeners();
   }
 
   // --- QUERY LOGIC ---
@@ -269,11 +300,14 @@ class AcademicController extends ChangeNotifier {
         (c) => c['code'] == slot['courseCode'], 
         orElse: () => {'title': 'Unknown', 'color': Colors.grey.value}
       );
+      bool isPersonal = (course['isPersonal'] ?? false);
+
       return {
         ...slot,
         'subject': course['title'] ?? 'Unknown',
         'color': Color(course['color'] as int? ?? Colors.grey.value),
         'attendance': _attendanceRecord[dateKey]?[slot['id']],
+        'isPersonal': isPersonal,
       };
     }).toList();
   }
@@ -358,6 +392,14 @@ class AcademicController extends ChangeNotifier {
     if (index >= 0 && index < _todoList.length) {
       _todoList[index]['isDone'] = !(_todoList[index]['isDone'] as bool? ?? false);
       _savePersonalData();
+      notifyListeners();
+    }
+  }
+
+  void toggleEventRegistration(int eventId) {
+    final index = _orgEvents.indexWhere((e) => e['id'] == eventId);
+    if (index != -1) {
+      _orgEvents[index]['isRegistered'] = !(_orgEvents[index]['isRegistered'] as bool? ?? false);
       notifyListeners();
     }
   }

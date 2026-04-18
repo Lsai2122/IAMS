@@ -3,6 +3,8 @@ import '../../widgets/dashboard_card.dart';
 import '../login_screen.dart';
 import '../events/events_screen.dart';
 import '../events/create_event_screen.dart';
+import '../events/participants_screen.dart';
+import '../events/engagement_screen.dart';
 
 class EventCoordinatorDashboard extends StatelessWidget {
   const EventCoordinatorDashboard({super.key});
@@ -11,7 +13,7 @@ class EventCoordinatorDashboard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Event Coordinator'),
+        title: const Text('Event Operations'),
         actions: [
           IconButton(
             icon: const Icon(Icons.logout_rounded),
@@ -24,19 +26,19 @@ class EventCoordinatorDashboard extends StatelessWidget {
         ],
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'Event Operations',
+              'Command Center',
               style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
             ),
             const Text(
-              'Manage campus activities and events',
+              'Manage and monitor all campus activities',
               style: TextStyle(color: Colors.grey),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 32),
             GridView.count(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
@@ -60,13 +62,13 @@ class EventCoordinatorDashboard extends StatelessWidget {
                   icon: Icons.people_outline_rounded,
                   label: 'Participants',
                   color: Colors.teal,
-                  onTap: () {},
+                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ParticipantsScreen())),
                 ),
                 DashboardCard(
                   icon: Icons.analytics_outlined,
                   label: 'Engagement',
                   color: Colors.orange,
-                  onTap: () {},
+                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const EngagementScreen())),
                 ),
               ],
             ),
