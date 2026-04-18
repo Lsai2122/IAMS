@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'theme/app_theme.dart';
-import 'screens/login_screen.dart';
+import 'screens/main_navigation_screen.dart';
+import 'screens/dashboard/student_dashboard.dart';
 
 void main() {
   runApp(const IAMSApp());
 }
 
-// Global notifier for theme switching
 final ValueNotifier<ThemeMode> themeNotifier = ValueNotifier(ThemeMode.light);
 
 class IAMSApp extends StatelessWidget {
@@ -23,7 +23,11 @@ class IAMSApp extends StatelessWidget {
           theme: AppTheme.lightTheme,
           darkTheme: AppTheme.darkTheme,
           themeMode: currentMode,
-          home: const LoginScreen(),
+          // Directly opening the main navigation screen as requested
+          home: const MainNavigationScreen(
+            dashboard: StudentDashboard(),
+            role: 'Student',
+          ),
         );
       },
     );

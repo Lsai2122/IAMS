@@ -17,7 +17,7 @@ class CourseDetailScreen extends StatelessWidget {
         content: TextField(
           controller: controller,
           keyboardType: TextInputType.number,
-          decoration: InputDecoration(labelText: 'Score', hintText: 'Enter marks obtained'),
+          decoration: const InputDecoration(labelText: 'Score', hintText: 'Enter marks obtained'),
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
@@ -69,7 +69,6 @@ class CourseDetailScreen extends StatelessWidget {
     return ListenableBuilder(
       listenable: academicController,
       builder: (context, _) {
-        // Re-fetch the course data from controller to get latest updates
         final liveCourse = academicController.courses.firstWhere((c) => c['code'] == course['code']);
         
         final stats = academicController.getAttendanceStats();
@@ -78,6 +77,11 @@ class CourseDetailScreen extends StatelessWidget {
           orElse: () => {'attended': 0, 'total': 0}
         );
         final double attendanceRatio = courseStats['total'] == 0 ? 0 : courseStats['attended'] / courseStats['total'];
+
+        // Fix: Int not subtype of Color
+        final Color courseColor = liveCourse['color'] is int 
+            ? Color(liveCourse['color']) 
+            : (liveCourse['color'] as Color? ?? Colors.blue);
 
         return Scaffold(
           appBar: AppBar(
@@ -103,7 +107,7 @@ class CourseDetailScreen extends StatelessWidget {
                   padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
-                      colors: [(liveCourse['color'] as Color), (liveCourse['color'] as Color).withOpacity(0.7)],
+                      colors: [courseColor, courseColor.withOpacity(0.7)],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     ),
@@ -159,7 +163,7 @@ class CourseDetailScreen extends StatelessWidget {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Text('${(attendanceRatio * 100).toStringAsFixed(1)}%', 
-                              style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: liveCourse['color'])),
+                              style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: courseColor)),
                             Row(
                               children: [
                                 Text('${courseStats['attended']} / ${courseStats['total']} Classes', style: const TextStyle(color: Colors.grey)),
@@ -175,8 +179,8 @@ class CourseDetailScreen extends StatelessWidget {
                           child: LinearProgressIndicator(
                             value: attendanceRatio,
                             minHeight: 10,
-                            backgroundColor: (liveCourse['color'] as Color).withOpacity(0.1),
-                            valueColor: AlwaysStoppedAnimation<Color>(liveCourse['color']),
+                            backgroundColor: courseColor.withOpacity(0.1),
+                            valueColor: AlwaysStoppedAnimation<Color>(courseColor),
                           ),
                         ),
                       ],

@@ -12,27 +12,24 @@ class CoursesScreen extends StatefulWidget {
 }
 
 class _CoursesScreenState extends State<CoursesScreen> {
-  void _addCourse() {
+  void _addPersonalCourse() {
     showDialog(
       context: context,
       builder: (context) {
         final titleController = TextEditingController();
         final codeController = TextEditingController();
-        final facultyController = TextEditingController();
         final creditsController = TextEditingController();
-        Color selectedColor = AppTheme.primaryBlue;
+        Color selectedColor = Colors.blue;
 
         return AlertDialog(
-          title: const Text('Register New Course'),
+          title: const Text('Add Personal Course'),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 TextField(controller: titleController, decoration: const InputDecoration(labelText: 'Course Title')),
                 const SizedBox(height: 12),
-                TextField(controller: codeController, decoration: const InputDecoration(labelText: 'Course Code (e.g. CS301)')),
-                const SizedBox(height: 12),
-                TextField(controller: facultyController, decoration: const InputDecoration(labelText: 'Faculty Name')),
+                TextField(controller: codeController, decoration: const InputDecoration(labelText: 'Short Code')),
                 const SizedBox(height: 12),
                 TextField(controller: creditsController, decoration: const InputDecoration(labelText: 'Credits'), keyboardType: TextInputType.number),
                 const SizedBox(height: 16),
@@ -44,8 +41,7 @@ class _CoursesScreenState extends State<CoursesScreen> {
                     return GestureDetector(
                       onTap: () => selectedColor = color,
                       child: Container(
-                        width: 30,
-                        height: 30,
+                        width: 30, height: 30,
                         decoration: BoxDecoration(color: color, shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 2)),
                       ),
                     );
@@ -59,17 +55,16 @@ class _CoursesScreenState extends State<CoursesScreen> {
             ElevatedButton(
               onPressed: () {
                 if (titleController.text.isNotEmpty && codeController.text.isNotEmpty) {
-                  academicController.registerCourse(
+                  academicController.registerPersonalCourse(
                     code: codeController.text,
                     title: titleController.text,
-                    faculty: facultyController.text,
-                    credits: int.tryParse(creditsController.text) ?? 3,
+                    credits: int.tryParse(creditsController.text) ?? 0,
                     color: selectedColor,
                   );
                   Navigator.pop(context);
                 }
               },
-              child: const Text('Register'),
+              child: const Text('Add'),
             ),
           ],
         );
@@ -83,40 +78,64 @@ class _CoursesScreenState extends State<CoursesScreen> {
       appBar: AppBar(
         title: const Text('My Courses'),
         actions: [
-          IconButton(icon: const Icon(Icons.add_task_rounded), onPressed: _addCourse),
+          IconButton(
+            icon: const Icon(Icons.sync_rounded),
+            onPressed: () => academicController.fetchOrganizationalData(context),
+          ),
         ],
       ),
       body: ListenableBuilder(
         listenable: academicController,
         builder: (context, _) {
-          final courses = academicController.courses;
+          final allCourses = academicController.courses;
           
-          if (courses.isEmpty) {
+          if (allCourses.isEmpty && !academicController.isLoading) {
             return EmptyStateView(
               icon: Icons.auto_stories_rounded,
-              title: 'No Enrolled Courses',
-              subtitle: 'Start your academic journey by adding your first course!',
-              buttonText: 'Add Course',
-              onAction: _addCourse,
+              title: 'No Courses Found',
+              subtitle: 'Add a personal course or sync with college server.',
+              buttonText: 'Add Personal Course',
+              onAction: _addPersonalCourse,
             );
+          }
+
+          if (academicController.isLoading) {
+            return const Center(child: CircularProgressIndicator());
           }
 
           return ListView.builder(
             padding: const EdgeInsets.all(16),
-            itemCount: courses.length,
+            itemCount: allCourses.length,
             itemBuilder: (context, index) {
-              final course = courses[index];
+              final course = allCourses[index];
+              final bool isPersonal = course['isPersonal'] ?? false;
+              
+              final Color courseColor = course['color'] is int 
+                ? Color(course['color']) 
+                : (course['color'] as Color? ?? Colors.blue);
+
               return Card(
                 margin: const EdgeInsets.only(bottom: 12),
                 child: ListTile(
                   onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => CourseDetailScreen(course: course))),
                   leading: CircleAvatar(
-                    backgroundColor: course['color'].withOpacity(0.1),
-                    child: Text(course['code']![0], style: TextStyle(color: course['color'], fontWeight: FontWeight.bold)),
+                    backgroundColor: courseColor.withOpacity(0.1),
+                    child: Text(
+                      (course['code'] as String? ?? '?')[0], 
+                      style: TextStyle(color: courseColor, fontWeight: FontWeight.bold)
+                    ),
                   ),
-                  title: Text(course['title']!, style: const TextStyle(fontWeight: FontWeight.bold)),
-                  subtitle: Text('${course['code']} • ${course['credits']} Credits • ${course['faculty']}'),
-                  trailing: const Icon(Icons.chevron_right_rounded),
+                  title: Row(
+                    children: [
+                      Text(course['title'] ?? 'Unknown Course', style: const TextStyle(fontWeight: FontWeight.bold)),
+                      if (isPersonal) ...[
+                        const SizedBox(width: 8),
+                        const Icon(Icons.person_outline, size: 14, color: Colors.grey),
+                      ],
+                    ],
+                  ),
+                  subtitle: Text('${course['code'] ?? '???'} • ${course['credits'] ?? 0} Credits'),
+                  trailing: isPersonal ? const Icon(Icons.lock_outline, size: 16, color: Colors.grey) : const Icon(Icons.business_outlined, size: 16, color: AppTheme.primaryBlue),
                 ),
               );
             },
@@ -124,7 +143,8 @@ class _CoursesScreenState extends State<CoursesScreen> {
         },
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: _addCourse,
+        onPressed: _addPersonalCourse,
+        tooltip: 'Add Personal Course',
         child: const Icon(Icons.add),
       ),
     );
