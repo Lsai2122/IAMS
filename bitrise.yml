@@ -12,12 +12,34 @@ workflows:
     - flutter-installer@0:
         inputs:
         - is_update: "false"
+    - script@1:
+        title: "Check Project Integrity"
+        inputs:
+        - content: |-
+            #!/bin/bash
+            set -ex
+            echo "Checking Flutter version and dependencies..."
+            flutter --version
+            flutter pub get
     - flutter-analyze@0:
+        title: "Static Analysis"
         inputs:
         - project_location: "."
     - flutter-test@1:
+        title: "Automated Workflow Tests"
         inputs:
         - project_location: "."
+        - additional_params: "--reporter expanded"
+    - script@1:
+        title: "Sync Status Report"
+        inputs:
+        - content: |-
+            #!/bin/bash
+            if [ $BITRISE_BUILD_STATUS -eq 0 ]; then
+              echo "✅ ALL ACADEMIC MODULES PASSED VALIDATION"
+            else
+              echo "❌ BUILD FAILED: Check logs for failed logic or syntax errors"
+            fi
     - deploy-to-bitrise-io@2: {}
 
   deploy:
@@ -29,7 +51,10 @@ workflows:
         inputs:
         - is_update: "false"
     - flutter-build@0:
+        title: "Build Production APK"
         inputs:
         - project_location: "."
         - platform: android
-    - deploy-to-bitrise-io@2: {}
+    - deploy-to-bitrise-io@2:
+        inputs:
+        - notify_user_groups: "everyone"
