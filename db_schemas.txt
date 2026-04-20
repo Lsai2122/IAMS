@@ -1,0 +1,173 @@
+ \d students
+                        Table "public.students"
+    Column    |          Type          | Collation | Nullable | Default
+--------------+------------------------+-----------+----------+---------
+ student_id   | integer                |           | not null |
+ student_name | character varying(100) |           | not null |
+ password     | character varying(225) |           | not null |
+ email        | character varying(100) |           | not null |
+ session_id   | character varying(128) |           |          |
+Indexes:
+    "students_pkey" PRIMARY KEY, btree (student_id)
+Referenced by:
+    TABLE "registrations" CONSTRAINT "fk_stduent_id_registrations" FOREIGN K
+EY (student_id) REFERENCES students(student_id)
+    TABLE "attendance" CONSTRAINT "fk_student_attendance" FOREIGN KEY (stude
+nt_id) REFERENCES students(student_id)
+    TABLE "event_registrations" CONSTRAINT "fk_students_event_reg" FOREIGN K
+EY (student_id) REFERENCES students(student_id)
+
+iams=# \d courses
+                         Table "public.courses"
+    Column     |          Type          | Collation | Nullable | Default
+---------------+------------------------+-----------+----------+---------
+ course_id     | integer                |           | not null |
+ course_name   | character varying(100) |           | not null |
+ no_of_classes | integer                |           |          | 0
+ faculty_name  | character varying(100) |           | not null |
+ credits       | integer                |           | not null |
+Indexes:
+    "courses_pkey" PRIMARY KEY, btree (course_id)
+Referenced by:
+    TABLE "assignments" CONSTRAINT "fk_course_assignments" FOREIGN KEY (cour
+se_id) REFERENCES courses(course_id)
+    TABLE "registrations" CONSTRAINT "fk_course_id_registrations" FOREIGN KE
+Y (course_id) REFERENCES courses(course_id)
+    TABLE "timetable" CONSTRAINT "fk_course_id_timetable" FOREIGN KEY (cours
+e_id) REFERENCES courses(course_id)
+
+iams=# \d timetable
+                               Table "public.timetable"
+  Column   |  Type   | Collation | Nullable |                 Default
+
+-----------+---------+-----------+----------+-------------------------------
+-----------
+ tt_id     | integer |           | not null | nextval('timetable_tt_id_seq':
+:regclass)
+ date      | date    |           | not null | CURRENT_DATE
+ time      | integer |           | not null |
+ course_id | integer |           |          |
+Indexes:
+    "timetable_pkey" PRIMARY KEY, btree (tt_id)
+Check constraints:
+    "timetable_time_check" CHECK ("time" >= 0 AND "time" <= 23)
+Foreign-key constraints:
+    "fk_course_id_timetable" FOREIGN KEY (course_id) REFERENCES courses(cour
+se_id)
+Referenced by:
+    TABLE "attendance" CONSTRAINT "fk_timetable_attendance" FOREIGN KEY (tt_
+id) REFERENCES timetable(tt_id)
+
+iams=# \d registrations
+                    Table "public.registrations"
+   Column   |         Type          | Collation | Nullabl
+e | Default
+------------+-----------------------+-----------+--------
+--+---------
+ course_id  | integer               |           | not nul
+l |
+ student_id | integer               |           | not nul
+l |
+ state      | character varying(30) |           | not nul
+l |
+ grade      | character varying(10) |           |
+  |
+ internal   | integer               |           |
+  |
+ mid_term   | integer               |           |
+  |
+Indexes:
+    "pk_registrations" PRIMARY KEY, btree (student_id, co
+urse_id)
+Check constraints:
+    "registrations_state_check" CHECK (state::text = ANY
+(ARRAY['active'::character varying, 'passed'::character v
+arying, 'failed_inactive'::character varying, 'failed_act
+ive'::character varying]::text[]))
+Foreign-key constraints:
+    "fk_course_id_registrations" FOREIGN KEY (course_id)
+REFERENCES courses(course_id)
+    "fk_stduent_id_registrations" FOREIGN KEY (student_id
+) REFERENCES students(student_id)
+
+
+iams=#
+iams=# \d assignments
+                                   Table "public.assignments"
+     Column      |          Type          | Collation | Nullable |
+  Default
+-----------------+------------------------+-----------+----------+----------
+---------------------
+ assignment_id   | integer                |           | not null |
+ deadline        | date                   |           |          | (now() +
+'10 days'::interval)
+ description     | character varying(200) |           | not null |
+ submission_link | character varying(100) |           | not null |
+ assigned_date   | date                   |           |          | now()
+ course_id       | integer                |           | not null |
+ assignment_name | character varying(100) |           | not null |
+Indexes:
+    "assignments_pkey" PRIMARY KEY, btree (assignment_id)
+Foreign-key constraints:
+    "fk_course_assignments" FOREIGN KEY (course_id) REFERENCES courses(cours
+e_id)
+
+
+
+iams=# attendance
+iams-# \d attendance
+               Table "public.attendance"
+   Column   |  Type   | Collation | Nullable | Default
+------------+---------+-----------+----------+---------
+ tt_id      | integer |           | not null |
+ student_id | integer |           | not null |
+Indexes:
+    "pk_attendance" PRIMARY KEY, btree (student_id, tt_id)
+Foreign-key constraints:
+    "fk_student_attendance" FOREIGN KEY (student_id) REFERENCES students(stu
+dent_id)
+    "fk_timetable_attendance" FOREIGN KEY (tt_id) REFERENCES timetable(tt_id
+)
+
+iams-# \d events
+                                       Table "public.events"
+    Column    |            Type             | Collation | Nullable |
+    Default
+--------------+-----------------------------+-----------+----------+--------
+-----------------------
+ event_id     | integer                     |           | not null |
+ event_name   | character varying(100)      |           | not null |
+ start_date   | date                        |           | not null | CURRENT
+_DATE
+ reg_deadline | timestamp without time zone |           | not null | (now()
++ '10 days'::interval)
+ capacity     | integer                     |           | not null |
+ description  | character varying(500)      |           | not null |
+ enrolled     | integer                     |           | not null | 0
+Indexes:
+    "events_pkey" PRIMARY KEY, btree (event_id)
+Referenced by:
+    TABLE "event_registrations" CONSTRAINT "fk_events_event_reg" FOREIGN KEY
+ (event_id) REFERENCES events(event_id)
+
+
+iams-# \d event_registrations
+                       Table "public.event_registrations"
+     Column      |            Type             | Collation | Nullable | Defa
+ult
+-----------------+-----------------------------+-----------+----------+-----
+----
+ student_id      | integer                     |           | not null |
+ event_id        | integer                     |           | not null |
+ registered_time | timestamp without time zone |           |          | now(
+)
+Indexes:
+    "pk_evetn_registrations" PRIMARY KEY, btree (event_id, student_id)
+Foreign-key constraints:
+    "fk_events_event_reg" FOREIGN KEY (event_id) REFERENCES events(event_id)
+    "fk_students_event_reg" FOREIGN KEY (student_id) REFERENCES students(stu
+dent_id)
+
+
+
+use username: postgres and password higoogle6457 for access to db

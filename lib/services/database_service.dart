@@ -10,7 +10,7 @@ class DatabaseService {
   Connection? _connection;
 
   Future<Connection> get connection async {
-    if (_connection != null && !_connection!.isClosed) {
+    if (_connection != null) {
       return _connection!;
     }
     _connection = await _connect();
@@ -18,12 +18,11 @@ class DatabaseService {
   }
 
   Future<Connection> _connect() async {
-    // Note: Use '10.0.2.2' for Android Emulator to connect to localhost on the host machine.
-    // Use the machine IP for physical devices.
-    String host = 'localhost';
-    if (!kIsWeb && Platform.isAndroid) {
-      host = '10.0.2.2';
-    }
+    // Host provided by user
+    String host = '192.168.137.1';
+    
+    // For local development on web or desktop, localhost might be needed
+    if (kIsWeb) host = 'localhost';
 
     try {
       final conn = await Connection.open(
@@ -34,7 +33,7 @@ class DatabaseService {
           username: 'postgres',
           password: 'higoogle6457',
         ),
-        settings: const ConnectionSettings(sslMode: SslMode.disable),
+        settings: ConnectionSettings(sslMode: SslMode.disable),
       );
       return conn;
     } catch (e) {
@@ -49,30 +48,76 @@ class DatabaseService {
   }
 
   // --- Authentication ---
-  Future<Map<String, dynamic>?> authenticateStudent(String email, String password) async {
-    final conn = await connection;
-    final result = await conn.execute(
-      Sql.named('SELECT * FROM students WHERE email = @email AND password = @password'),
-      parameters: {'email': email, 'password': password},
-    );
+  
+  Future<Map<String, dynamic>?> getStudentByEmail(String email) async {
+    try {
+      final conn = await connection;
+      final result = await conn.execute(
+        Sql.named('SELECT * FROM students WHERE email = @email'),
+        parameters: {'email': email},
+      );
 
-    if (result.isEmpty) return null;
+      if (result.isEmpty) return null;
 
-    final row = result.first;
-    final columns = result.schema.columns;
-    final map = <String, dynamic>{};
-    for (var i = 0; i < columns.length; i++) {
-      map[columns[i].columnName] = row[i];
+      final row = result.first;
+      final map = <String, dynamic>{};
+      for (var i = 0; i < result.schema.columns.length; i++) {
+        final columnName = result.schema.columns[i].columnName;
+        if (columnName != null) {
+          map[columnName] = row[i];
+        }
+      }
+      return map;
+    } catch (e) {
+      debugPrint('Error getting student: $e');
+      rethrow;
     }
-    return map;
+  }
+
+  Future<Map<String, dynamic>?> getStudentBySessionId(String sessionId) async {
+    try {
+      final conn = await connection;
+      final result = await conn.execute(
+        Sql.named('SELECT * FROM students WHERE session_id = @sessionId'),
+        parameters: {'sessionId': sessionId},
+      );
+
+      if (result.isEmpty) return null;
+      final row = result.first;
+      final map = <String, dynamic>{};
+      for (var i = 0; i < result.schema.columns.length; i++) {
+        final columnName = result.schema.columns[i].columnName;
+        if (columnName != null) map[columnName] = row[i];
+      }
+      return map;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  Future<void> updateSessionId(int studentId, String? sessionId) async {
+    final conn = await connection;
+    await conn.execute(
+      Sql.named('UPDATE students SET session_id = @sessionId WHERE student_id = @studentId'),
+      parameters: {'sessionId': sessionId, 'studentId': studentId},
+    );
+  }
+
+  Future<void> createStudent({required int id, required String name, required String email, required String password}) async {
+    final conn = await connection;
+    await conn.execute(
+      Sql.named('INSERT INTO students (student_id, student_name, email, password) VALUES (@id, @name, @email, @password)'),
+      parameters: {'id': id, 'name': name, 'email': email, 'password': password},
+    );
   }
 
   // --- Data Fetching ---
+  
   Future<List<Map<String, dynamic>>> fetchOrgCourses(int studentId) async {
     final conn = await connection;
     final result = await conn.execute(
       Sql.named('''
-        SELECT c.*, r.grade, r.marks, r.state 
+        SELECT c.*, r.grade, r.internal, r.mid_term, r.state 
         FROM courses c
         JOIN registrations r ON c.course_id = r.course_id
         WHERE r.student_id = @studentId
@@ -83,7 +128,8 @@ class DatabaseService {
     return result.map((row) {
       final map = <String, dynamic>{};
       for (var i = 0; i < result.schema.columns.length; i++) {
-        map[result.schema.columns[i].columnName] = row[i];
+        final columnName = result.schema.columns[i].columnName;
+        if (columnName != null) map[columnName] = row[i];
       }
       return map;
     }).toList();
@@ -105,7 +151,30 @@ class DatabaseService {
     return result.map((row) {
       final map = <String, dynamic>{};
       for (var i = 0; i < result.schema.columns.length; i++) {
-        map[result.schema.columns[i].columnName] = row[i];
+        final columnName = result.schema.columns[i].columnName;
+        if (columnName != null) map[columnName] = row[i];
+      }
+      return map;
+    }).toList();
+  }
+
+  Future<List<Map<String, dynamic>>> fetchAttendance(int studentId) async {
+    final conn = await connection;
+    final result = await conn.execute(
+      Sql.named('''
+        SELECT a.*, t.date 
+        FROM attendance a 
+        JOIN timetable t ON a.tt_id = t.tt_id 
+        WHERE a.student_id = @studentId
+      '''),
+      parameters: {'studentId': studentId},
+    );
+
+    return result.map((row) {
+      final map = <String, dynamic>{};
+      for (var i = 0; i < result.schema.columns.length; i++) {
+        final columnName = result.schema.columns[i].columnName;
+        if (columnName != null) map[columnName] = row[i];
       }
       return map;
     }).toList();
@@ -114,11 +183,11 @@ class DatabaseService {
   Future<List<Map<String, dynamic>>> fetchEvents() async {
     final conn = await connection;
     final result = await conn.execute('SELECT * FROM events');
-
     return result.map((row) {
       final map = <String, dynamic>{};
       for (var i = 0; i < result.schema.columns.length; i++) {
-        map[result.schema.columns[i].columnName] = row[i];
+        final columnName = result.schema.columns[i].columnName;
+        if (columnName != null) map[columnName] = row[i];
       }
       return map;
     }).toList();
@@ -127,19 +196,14 @@ class DatabaseService {
   Future<List<Map<String, dynamic>>> fetchRegisteredEvents(int studentId) async {
     final conn = await connection;
     final result = await conn.execute(
-      Sql.named('''
-        SELECT e.* 
-        FROM events e
-        JOIN event_registrations er ON e.event_id = er.event_id
-        WHERE er.student_id = @studentId
-      '''),
+      Sql.named('SELECT * FROM event_registrations WHERE student_id = @studentId'),
       parameters: {'studentId': studentId},
     );
-
     return result.map((row) {
       final map = <String, dynamic>{};
       for (var i = 0; i < result.schema.columns.length; i++) {
-        map[result.schema.columns[i].columnName] = row[i];
+        final columnName = result.schema.columns[i].columnName;
+        if (columnName != null) map[columnName] = row[i];
       }
       return map;
     }).toList();
@@ -157,27 +221,11 @@ class DatabaseService {
       '''),
       parameters: {'studentId': studentId},
     );
-
     return result.map((row) {
       final map = <String, dynamic>{};
       for (var i = 0; i < result.schema.columns.length; i++) {
-        map[result.schema.columns[i].columnName] = row[i];
-      }
-      return map;
-    }).toList();
-  }
-
-  Future<List<Map<String, dynamic>>> fetchAttendance(int studentId) async {
-    final conn = await connection;
-    final result = await conn.execute(
-      Sql.named('SELECT * FROM attendance WHERE student_id = @studentId'),
-      parameters: {'studentId': studentId},
-    );
-
-    return result.map((row) {
-      final map = <String, dynamic>{};
-      for (var i = 0; i < result.schema.columns.length; i++) {
-        map[result.schema.columns[i].columnName] = row[i];
+        final columnName = result.schema.columns[i].columnName;
+        if (columnName != null) map[columnName] = row[i];
       }
       return map;
     }).toList();

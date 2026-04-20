@@ -70,6 +70,7 @@ class CourseDetailScreen extends StatelessWidget {
       listenable: academicController,
       builder: (context, _) {
         final liveCourse = academicController.courses.firstWhere((c) => c['code'] == course['code']);
+        final bool isPersonal = liveCourse['isPersonal'] ?? false;
         
         final stats = academicController.getAttendanceStats();
         final courseStats = stats.firstWhere(
@@ -78,7 +79,6 @@ class CourseDetailScreen extends StatelessWidget {
         );
         final double attendanceRatio = courseStats['total'] == 0 ? 0 : courseStats['attended'] / courseStats['total'];
 
-        // Fix: Int not subtype of Color
         final Color courseColor = liveCourse['color'] is int 
             ? Color(liveCourse['color']) 
             : (liveCourse['color'] as Color? ?? Colors.blue);
@@ -88,11 +88,12 @@ class CourseDetailScreen extends StatelessWidget {
             title: Text(liveCourse['title'] ?? 'Course Details'),
             backgroundColor: Colors.transparent,
             actions: [
-              IconButton(
-                icon: const Icon(Icons.grade_rounded),
-                onPressed: () => _editGrade(context, liveCourse['grade'] ?? 'N/A'),
-                tooltip: 'Update Grade',
-              ),
+              if (isPersonal)
+                IconButton(
+                  icon: const Icon(Icons.grade_rounded),
+                  onPressed: () => _editGrade(context, liveCourse['grade'] ?? 'N/A'),
+                  tooltip: 'Update Grade',
+                ),
               const SizedBox(width: 8),
             ],
           ),
@@ -190,15 +191,40 @@ class CourseDetailScreen extends StatelessWidget {
                 const SizedBox(height: 32),
 
                 // Marks Section
-                const Text('Academic Marks (Tap to Edit)', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                Text(
+                  isPersonal ? 'Academic Marks (Tap to Edit)' : 'Academic Marks (Read-Only)', 
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)
+                ),
                 const SizedBox(height: 16),
                 Row(
                   children: [
-                    _buildMarkCard(context, 'Internal', liveCourse['marks']?['Internal'] ?? 0, 25, Colors.blue),
+                    _buildMarkCard(
+                      context, 
+                      'Internal', 
+                      liveCourse['marks']?['Internal'] ?? 0, 
+                      25, 
+                      Colors.blue, 
+                      isEditable: isPersonal
+                    ),
                     const SizedBox(width: 12),
-                    _buildMarkCard(context, 'Mid-term', liveCourse['marks']?['Mid-term'] ?? 0, 50, Colors.orange),
+                    _buildMarkCard(
+                      context, 
+                      'Mid-term', 
+                      liveCourse['marks']?['Mid-term'] ?? 0, 
+                      50, 
+                      Colors.orange, 
+                      isEditable: isPersonal
+                    ),
                     const SizedBox(width: 12),
-                    _buildMarkCard(context, 'Target', liveCourse['marks']?['Target'] ?? 75, 100, Colors.green, isPercent: true),
+                    _buildMarkCard(
+                      context, 
+                      'Target', 
+                      liveCourse['marks']?['Target'] ?? 75, 
+                      100, 
+                      Colors.green, 
+                      isPercent: true, 
+                      isEditable: true // Target is always a personal student goal
+                    ),
                   ],
                 ),
                 const SizedBox(height: 32),
@@ -239,10 +265,18 @@ class CourseDetailScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildMarkCard(BuildContext context, String label, int value, int total, Color color, {bool isPercent = false}) {
+  Widget _buildMarkCard(
+    BuildContext context, 
+    String label, 
+    int value, 
+    int total, 
+    Color color, {
+    bool isPercent = false, 
+    bool isEditable = false
+  }) {
     return Expanded(
       child: InkWell(
-        onTap: () => _editMarks(context, label, value),
+        onTap: isEditable ? () => _editMarks(context, label, value) : null,
         borderRadius: BorderRadius.circular(16),
         child: Container(
           padding: const EdgeInsets.all(16),
@@ -256,8 +290,10 @@ class CourseDetailScreen extends StatelessWidget {
               Text(label, style: TextStyle(fontSize: 12, color: color, fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
               Text(isPercent ? '$value%' : '$value/$total', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 4),
-              const Icon(Icons.edit_outlined, size: 12, color: Colors.grey),
+              if (isEditable) ...[
+                const SizedBox(height: 4),
+                const Icon(Icons.edit_outlined, size: 12, color: Colors.grey),
+              ],
             ],
           ),
         ),

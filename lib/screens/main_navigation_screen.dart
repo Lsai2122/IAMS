@@ -7,7 +7,7 @@ import 'materials/materials_screen.dart';
 import 'courses/courses_screen.dart';
 import 'grades/grades_screen.dart';
 import 'attendance/attendance_screen.dart';
-import 'attendance/attendance_stats_screen.dart';
+import 'dashboard/statistics_screen.dart'; 
 import 'events/events_screen.dart';
 import 'events/create_event_screen.dart';
 import 'events/participants_screen.dart';
@@ -21,6 +21,8 @@ import 'dashboard/student_dashboard.dart';
 import 'dashboard/event_coordinator_dashboard.dart';
 import 'dashboard/faculty_dashboard.dart';
 import 'timetable/timetable_screen.dart';
+import '../controllers/academic_controller.dart';
+import 'login_screen.dart';
 
 class MainNavigationScreen extends StatefulWidget {
   final Widget dashboard;
@@ -41,7 +43,6 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   int _sideMenuIndex = 0;
   double _sliderYOffset = -80; 
 
-  // Side Ball icons per Role
   final List<IconData> _studentIcons = [
     Icons.dashboard_rounded,
     Icons.book_rounded,
@@ -63,7 +64,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   final List<IconData> _facultyIcons = [
     Icons.dashboard_rounded,
     Icons.assignment_rounded,
-    Icons.how_to_reg_rounded, // Attendance marking
+    Icons.how_to_reg_rounded, 
     Icons.grade_rounded,
     Icons.upload_file_rounded,
     Icons.campaign_rounded,
@@ -86,7 +87,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       ];
       
       _bottomBarScreens = [
-        const SizedBox.shrink(), // Dynamic Side Menu Tab
+        const SizedBox.shrink(), 
         const EventNoticesScreen(),
         const EventInboxScreen(),
         _SettingsScreen(role: widget.role),
@@ -95,7 +96,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       _sideMenuScreens = [
         const FacultyDashboard(),
         const FacultyAssignmentsScreen(),
-        const AttendanceScreen(), // Faculty can mark attendance here
+        const AttendanceScreen(), 
         const GradesScreen(),
         const MaterialsScreen(),
         const EventNoticesScreen(),
@@ -162,7 +163,6 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
             ),
           ),
 
-          // Role-specific Floating Action Button (Student only)
           if (widget.role == 'Student')
             Positioned(
               bottom: 12,
@@ -170,7 +170,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
               child: SizedBox(
                 width: 58, height: 60,
                 child: FloatingActionButton(
-                  onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AttendanceStatsScreen())),
+                  onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StatisticsScreen())),
                   shape: const CircleBorder(),
                   child: Container(
                     width: 58, height: 58,
@@ -181,7 +181,6 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
               ),
             ),
 
-          // RELOCATABLE SIDE BALL
           Positioned(
             right: 0,
             top: (MediaQuery.of(context).size.height / 2) - 30 + _sliderYOffset,
@@ -289,7 +288,19 @@ class _SettingsScreen extends StatelessWidget {
           _buildSettingTile(Icons.notifications_none, 'Notification Preferences'),
           const Divider(height: 40),
           _buildSettingTile(Icons.help_outline, 'Help & Support'),
-          TextButton.icon(onPressed: () => Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false), icon: const Icon(Icons.logout, color: Colors.red), label: const Text('Logout', style: TextStyle(color: Colors.red))),
+          TextButton.icon(
+            onPressed: () async {
+              await academicController.logout();
+              if (context.mounted) {
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (_) => const LoginScreen()),
+                  (route) => false,
+                );
+              }
+            }, 
+            icon: const Icon(Icons.logout, color: Colors.red), 
+            label: const Text('Logout', style: TextStyle(color: Colors.red))
+          ),
         ],
       ),
     );

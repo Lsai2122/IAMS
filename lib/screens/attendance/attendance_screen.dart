@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../controllers/academic_controller.dart';
+import '../../theme/app_theme.dart';
 
 class AttendanceScreen extends StatelessWidget {
   const AttendanceScreen({super.key});
@@ -24,6 +25,7 @@ class AttendanceScreen extends StatelessWidget {
               final a = attendanceData[index];
               final total = a['total'] as int;
               final attended = a['attended'] as int;
+              final personalHours = a['personalHours'] as int? ?? 0;
               final ratio = total == 0 ? 0.0 : attended / total;
               final percent = (ratio * 100).toStringAsFixed(1);
               final Color color = a['color'] as Color;
@@ -68,9 +70,30 @@ class AttendanceScreen extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 12),
-                      Text(
-                        '$attended attended of $total total classes',
-                        style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            '$attended attended of $total official classes',
+                            style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                          ),
+                          if (personalHours > 0)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: AppTheme.primaryBlue.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                '+$personalHours Study Hours',
+                                style: const TextStyle(
+                                  color: AppTheme.primaryBlue,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
                     ],
                   ),

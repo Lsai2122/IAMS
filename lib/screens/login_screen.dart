@@ -1,11 +1,8 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
+import '../controllers/academic_controller.dart';
 import 'main_navigation_screen.dart';
 import 'dashboard/student_dashboard.dart';
-import 'dashboard/faculty_dashboard.dart';
-import 'dashboard/admin_dashboard.dart';
-import 'dashboard/event_coordinator_dashboard.dart';
-import 'grievance/anonymous_query_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -17,46 +14,58 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  String _selectedRole = 'Student';
+  final _nameController = TextEditingController();
+  final _idController = TextEditingController();
+  bool _isSignUp = false;
   bool _obscurePassword = true;
 
-  final List<String> _roles = ['Student', 'Faculty', 'Admin', 'Event Coordinator'];
-
-  void _login() {
+  Future<void> _handleAuth() async {
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
+    final name = _nameController.text.trim();
+    final idStr = _idController.text.trim();
 
-    if (email.isEmpty || password.isEmpty) {
+    if (email.isEmpty || password.isEmpty || (_isSignUp && (name.isEmpty || idStr.isEmpty))) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter email and password')),
+        const SnackBar(content: Text('Please fill all fields')),
       );
       return;
     }
 
-    Widget dashboard;
-    switch (_selectedRole) {
-      case 'Admin':
-        dashboard = const AdminDashboard();
-        break;
-      case 'Faculty':
-        dashboard = const FacultyDashboard();
-        break;
-      case 'Event Coordinator':
-        dashboard = const EventCoordinatorDashboard();
-        break;
-      default:
-        dashboard = const StudentDashboard();
+    String? error;
+    if (_isSignUp) {
+      final id = int.tryParse(idStr);
+      if (id == null) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Student ID must be a number')));
+        return;
+      }
+      error = await academicController.signUp(name, email, password, id);
+    } else {
+      error = await academicController.login(email, password, context);
     }
 
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (_) => MainNavigationScreen(
-          dashboard: dashboard,
-          role: _selectedRole,
-        ),
-      ),
-    );
+    if (error == null) {
+      if (_isSignUp) {
+        setState(() => _isSignUp = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Account created! Please login.')),
+        );
+      } else {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => const MainNavigationScreen(
+              dashboard: StudentDashboard(),
+              role: 'Student',
+            ),
+          ),
+        );
+      }
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error)),
+      );
+    }
   }
 
   @override
@@ -67,11 +76,7 @@ class _LoginScreenState extends State<LoginScreen> {
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [
-              AppTheme.primaryBlue.withOpacity(0.1),
-              Colors.white,
-              AppTheme.accentBlue.withOpacity(0.05),
-            ],
+            colors: [AppTheme.primaryBlue.withOpacity(0.1), Colors.white, AppTheme.accentBlue.withOpacity(0.05)],
           ),
         ),
         child: Center(
@@ -82,46 +87,33 @@ class _LoginScreenState extends State<LoginScreen> {
               children: [
                 Container(
                   padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    gradient: AppTheme.primaryGradient,
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppTheme.primaryBlue.withOpacity(0.3),
-                        blurRadius: 20,
-                        offset: const Offset(0, 10),
-                      ),
-                    ],
-                  ),
+                  decoration: BoxDecoration(gradient: AppTheme.primaryGradient, shape: BoxShape.circle),
                   child: const Icon(Icons.school_rounded, size: 50, color: Colors.white),
                 ),
                 const SizedBox(height: 24),
-                const Text(
-                  'IAMS Portal',
-                  style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: AppTheme.textDark),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Integrated Academic Management System',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: AppTheme.textLight, fontSize: 16),
-                ),
+                Text(_isSignUp ? 'Create Account' : 'IAMS Portal', style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: AppTheme.textDark)),
                 const SizedBox(height: 48),
                 Card(
-                  elevation: 0,
                   child: Padding(
                     padding: const EdgeInsets.all(28),
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('Sign In', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: AppTheme.textDark)),
-                        const SizedBox(height: 24),
+                        if (_isSignUp) ...[
+                          TextField(
+                            controller: _idController,
+                            keyboardType: TextInputType.number,
+                            decoration: const InputDecoration(labelText: 'Student ID', prefixIcon: Icon(Icons.badge_outlined)),
+                          ),
+                          const SizedBox(height: 16),
+                          TextField(
+                            controller: _nameController,
+                            decoration: const InputDecoration(labelText: 'Full Name', prefixIcon: Icon(Icons.person_outline)),
+                          ),
+                          const SizedBox(height: 16),
+                        ],
                         TextField(
                           controller: _emailController,
-                          decoration: const InputDecoration(
-                            labelText: 'Email Address',
-                            prefixIcon: Icon(Icons.email_outlined),
-                          ),
+                          decoration: const InputDecoration(labelText: 'Email Address', prefixIcon: Icon(Icons.email_outlined)),
                         ),
                         const SizedBox(height: 16),
                         TextField(
@@ -136,49 +128,30 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                           ),
                         ),
-                        const SizedBox(height: 16),
-                        DropdownButtonFormField<String>(
-                          value: _selectedRole,
-                          decoration: const InputDecoration(
-                            labelText: 'Login as',
-                            prefixIcon: Icon(Icons.badge_outlined),
-                          ),
-                          items: _roles.map((role) => DropdownMenuItem(value: role, child: Text(role))).toList(),
-                          onChanged: (value) => setState(() => _selectedRole = value!),
-                        ),
                         const SizedBox(height: 32),
-                        Container(
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(12),
-                            gradient: AppTheme.primaryGradient,
-                            boxShadow: [
-                              BoxShadow(
-                                color: AppTheme.primaryBlue.withOpacity(0.3),
-                                blurRadius: 10,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                          ),
-                          child: ElevatedButton(
-                            onPressed: _login,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.transparent,
-                              shadowColor: Colors.transparent,
-                            ),
-                            child: const Text(
-                                'Login',
-                              style: TextStyle(color: Colors.white),
-                            ),
-                          ),
+                        ListenableBuilder(
+                          listenable: academicController,
+                          builder: (context, _) {
+                            return academicController.isLoading 
+                              ? const CircularProgressIndicator()
+                              : ElevatedButton(
+                                  onPressed: _handleAuth,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppTheme.primaryBlue,
+                                    foregroundColor: Colors.white,
+                                  ),
+                                  child: Text(_isSignUp ? 'Sign Up' : 'Login'),
+                                );
+                          }
                         ),
                       ],
                     ),
                   ),
                 ),
-                const SizedBox(height: 32),
+                const SizedBox(height: 24),
                 TextButton(
-                  onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AnonymousQueryScreen())),
-                  child: const Text('Submit an anonymous grievance', style: TextStyle(color: AppTheme.accentBlue, fontWeight: FontWeight.bold)),
+                  onPressed: () => setState(() => _isSignUp = !_isSignUp),
+                  child: Text(_isSignUp ? 'Already have an account? Login' : 'New here? Create an account'),
                 ),
               ],
             ),
