@@ -1,89 +1,141 @@
 import 'package:flutter_test/flutter_test.dart';
 
-/// Fake Authentication System (no DB)
+/// 🧠 Mock Authentication Logic for Automated Testing
+/// This class bypasses the real PostgreSQL database to allow 
+/// headless testing in Bitrise CI environments.
 class FakeAuthService {
-  final Map<String, String> users = {};
+  // Simple in-memory storage for test users: Email -> {id, name, password}
+  final Map<String, Map<String, dynamic>> _mockDb = {};
 
-  bool register(String username, String password) {
-    if (username.isEmpty || password.length < 4) {
-      return false;
+  /// Validates input and registers a user if they don't already exist.
+  Future<String?> signUp({
+    required int id,
+    required String name,
+    required String email,
+    required String password,
+  }) async {
+    // 🛑 Logic Rule 1: No empty fields allowed
+    if (name.trim().isEmpty || email.trim().isEmpty || password.trim().isEmpty) {
+      return "All fields are required";
     }
 
-    if (users.containsKey(username)) {
-      return false; // already exists
+    // 🛑 Logic Rule 2: ID must be a positive integer
+    if (id <= 0) {
+      return "Invalid Student ID";
     }
 
-    users[username] = password;
-    return true;
+    // 🛑 Logic Rule 3: No duplicate emails
+    if (_mockDb.containsKey(email)) {
+      return "Email already registered";
+    }
+
+    // ✅ Success: Store in mock database
+    _mockDb[email] = {
+      'id': id,
+      'name': name,
+      'password': password,
+    };
+    return null; // Null means success
   }
 
-  bool login(String username, String password) {
-    if (!users.containsKey(username)) return false;
+  /// Verifies credentials against the mock database.
+  Future<String?> login(String email, String password) async {
+    // 🛑 Logic Rule 4: User must exist
+    if (!_mockDb.containsKey(email)) {
+      return "User does not exist";
+    }
 
-    return users[username] == password;
+    // 🛑 Logic Rule 5: Password must match
+    if (_mockDb[email]!['password'] != password) {
+      return "Incorrect password";
+    }
+
+    // ✅ Success
+    return null;
   }
+
+  /// Utility for tests to clear data
+  void clear() => _mockDb.clear();
 }
 
 void main() {
-  group('🔐 Fake Authentication Tests', () {
+  group('🔐 Fake Authentication Integrated Workflow', () {
     late FakeAuthService auth;
 
     setUp(() {
       auth = FakeAuthService();
     });
 
-    // ✅ Registration Success
-    test('✅ Register user with valid credentials', () {
-      print('Input -> username: sai, password: 1234');
+    test('✅ SUCCESS: Create account and login with valid data', () async {
+      print('Scenario: Valid user registration and login');
+      
+      // 1. Sign Up
+      final regResult = await auth.signUp(
+        id: 2021001,
+        name: 'Sai Kiran',
+        email: 'sai@college.edu',
+        password: 'securePassword123'
+      );
+      expect(regResult, null);
 
-      bool result = auth.register('sai', '1234');
-
-      print('Output -> $result');
-
-      expect(result, true);
+      // 2. Login
+      final loginResult = await auth.login('sai@college.edu', 'securePassword123');
+      expect(loginResult, null);
+      
+      print('Result: Passed');
     });
 
-    // ❌ Registration Fail (short password)
-    test('❌ Register should fail for short password', () {
-      print('Input -> username: sai, password: 12');
-
-      bool result = auth.register('sai', '12');
-
-      expect(result, false);
+    test('❌ FAIL: Prevent registration with empty fields', () async {
+      print('Scenario: Missing name field');
+      
+      final result = await auth.signUp(
+        id: 2021002,
+        name: '',
+        email: 'fail@college.edu',
+        password: 'pass'
+      );
+      
+      expect(result, "All fields are required");
+      print('Result: Correctly Blocked');
     });
 
-    // ❌ Registration Fail (duplicate user)
-    test('❌ Duplicate user should not register', () {
-      auth.register('sai', '1234');
+    test('❌ FAIL: Prevent login with incorrect password', () async {
+      print('Scenario: Wrong password attempt');
+      
+      await auth.signUp(
+        id: 2021003,
+        name: 'John Doe',
+        email: 'john@college.edu',
+        password: 'correctPassword'
+      );
 
-      bool result = auth.register('sai', '1234');
-
-      expect(result, false);
+      final result = await auth.login('john@college.edu', 'wrongPassword');
+      
+      expect(result, "Incorrect password");
+      print('Result: Correctly Blocked');
     });
 
-    // ✅ Login Success
-    test('✅ Login with correct credentials', () {
-      auth.register('sai', '1234');
-
-      bool result = auth.login('sai', '1234');
-
-      expect(result, true);
+    test('❌ FAIL: Prevent login for non-existent user', () async {
+      print('Scenario: Unregistered email login');
+      
+      final result = await auth.login('unknown@college.edu', 'somePass');
+      
+      expect(result, "User does not exist");
+      print('Result: Correctly Blocked');
     });
 
-    // ❌ Login Fail (wrong password)
-    test('❌ Login fails with wrong password', () {
-      auth.register('sai', '1234');
-
-      bool result = auth.login('sai', 'wrong');
-
-      expect(result, false);
-    });
-
-    // ❌ Login Fail (user not found)
-    test('❌ Login fails for unregistered user', () {
-      bool result = auth.login('unknown', '1234');
-
-      expect(result, false);
+    test('❌ FAIL: Handle invalid Student ID', () async {
+      print('Scenario: Negative ID value');
+      
+      final result = await auth.signUp(
+        id: -1,
+        name: 'Bad ID',
+        email: 'badid@college.edu',
+        password: 'pass'
+      );
+      
+      expect(result, "Invalid Student ID");
+      print('Result: Correctly Blocked');
     });
   });
 }
