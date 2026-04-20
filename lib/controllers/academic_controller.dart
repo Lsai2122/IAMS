@@ -35,10 +35,10 @@ class AcademicController extends ChangeNotifier {
   List<Map<String, dynamic>> get todoList => _todoList;
   List<Map<String, dynamic>> get allEvents => _orgEvents;
   List<Map<String, dynamic>> get assignments => _orgAssignments;
-  List<Map<String, dynamic>> get registeredEvents => _orgEvents.where((e) => e['isRegistered'] == true).toList();
+  List<Map<String, dynamic>> get registeredEvents => _orgEvents.where((e) => (e['isRegistered'] as bool? ?? false) == true).toList();
 
   AcademicController() {
-    // Basic init, loadLocalPersonalData is now student-specific and called after login/session check
+    _loadLocalPersonalData();
   }
 
   // --- PERSISTENCE ---
@@ -71,7 +71,7 @@ class AcademicController extends ChangeNotifier {
 
     if (prefs.containsKey('${prefix}personal_attendance_record')) {
       _personalAttendanceRecord = Map<String, Map<String, bool>>.from(
-        (json.decode(prefs.getString('${prefix}personal_attendance_record')!) as Map).map(
+        (json.decode(prefs.getString('personal_attendance_record')!) as Map).map(
           (k, v) => MapEntry(k, Map<String, bool>.from(v))
         )
       );
@@ -93,7 +93,6 @@ class AcademicController extends ChangeNotifier {
   }
 
   // --- AUTH & SYNC ---
-  
   Future<String?> signUp(String name, String email, String password, int id) async {
     isLoading = true;
     notifyListeners();
@@ -143,7 +142,7 @@ class AcademicController extends ChangeNotifier {
       currentStudentId = user['student_id'] as int;
       currentStudentName = user['student_name'] as String;
       
-      await _loadLocalPersonalData(); // Load data specific to THIS student
+      await _loadLocalPersonalData(); 
       await fetchOrganizationalData(context);
       
       isLoading = false;
@@ -166,7 +165,7 @@ class AcademicController extends ChangeNotifier {
       if (user != null) {
         currentStudentId = user['student_id'] as int;
         currentStudentName = user['student_name'] as String;
-        await _loadLocalPersonalData(); // Load data specific to THIS student
+        await _loadLocalPersonalData(); 
         await fetchOrganizationalData(context);
         isLoading = false;
         notifyListeners();
@@ -226,6 +225,7 @@ class AcademicController extends ChangeNotifier {
 
       final rawTimetable = await db.fetchTimetable(currentStudentId!);
       _orgTimetableByDate = {};
+      final days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
       for (var slot in rawTimetable) {
         DateTime date = slot['date'] as DateTime;
         String dateKey = _formatDateToKey(date);
@@ -278,17 +278,6 @@ class AcademicController extends ChangeNotifier {
     );
   }
 
-  // --- UTILS ---
-  String _formatIntToTime(int hour) {
-    int displayHour = hour > 12 ? hour - 12 : (hour == 0 ? 12 : hour);
-    String period = hour >= 12 ? 'PM' : 'AM';
-    return "${displayHour.toString().padLeft(2, '0')}:00 $period";
-  }
-
-  String _formatDateToKey(DateTime date) {
-    return "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
-  }
-
   // --- ACTIONS ---
   void toggleTodo(int index) {
     if (index >= 0 && index < _todoList.length) {
@@ -315,6 +304,7 @@ class AcademicController extends ChangeNotifier {
   }
 
   void registerPersonalCourse({required String code, required String title, required int credits, required Color color}) {
+    if (title.trim().isEmpty || code.trim().isEmpty) return;
     _personalCourses.add({'code': code, 'title': title, 'credits': credits, 'faculty': 'Personal', 'color': color.value, 'marks': {'Total': 0}, 'notes': [], 'grade': 'N/A', 'isPersonal': true});
     _savePersonalData(); notifyListeners();
   }
@@ -372,7 +362,10 @@ class AcademicController extends ChangeNotifier {
 
   void toggleEventRegistration(int eventId) {
     final index = _orgEvents.indexWhere((e) => e['id'] == eventId);
-    if (index != -1) { _orgEvents[index]['isRegistered'] = !(_orgEvents[index]['isRegistered'] as bool? ?? false); notifyListeners(); }
+    if (index != -1) {
+      _orgEvents[index]['isRegistered'] = !(_orgEvents[index]['isRegistered'] as bool? ?? false);
+      notifyListeners();
+    }
   }
 
   // --- QUERY LOGIC ---
@@ -447,6 +440,17 @@ class AcademicController extends ChangeNotifier {
       });
     });
     return history.reversed.toList();
+  }
+
+  // --- UTILS ---
+  String _formatIntToTime(int hour) {
+    int displayHour = hour > 12 ? hour - 12 : (hour == 0 ? 12 : hour);
+    String period = hour >= 12 ? 'PM' : 'AM';
+    return "${displayHour.toString().padLeft(2, '0')}:00 $period";
+  }
+
+  String _formatDateToKey(DateTime date) {
+    return "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
   }
 
   double get gpa {
