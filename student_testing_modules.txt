@@ -1,0 +1,71 @@
+IAMS - Student Module Testing Checklist
+
+This document outlines the student-specific modules and the attributes/scenarios that require testing to ensure system stability and data integrity.
+
+1. AUTHENTICATION & SESSION MANAGEMENT
+   - Attributes:
+     * Sign Up: Manual Student ID (integer), Name, Email, Password.
+     * Login: Validation against PostgreSQL 'students' table.
+     * Error Messages: 'User does not exist', 'Incorrect password', 'Email already registered'.
+     * Session Persistence: UUID generation and storage in both DB and Local SharedPreferences.
+     * Auto-Login: Bypassing login screen on app restart if session matches.
+     * Logout: Wiping local session and clearing PostgreSQL session_id.
+
+2. DATA SYNC & PERSISTENCE (HYBRID MODEL)
+   - Attributes:
+     * Zero-Data State: Initial app launch should show empty dashboards.
+     * Sync Success: Fetching 'org_courses', 'org_timetable', 'attendance', 'assignments'.
+     * Sync Failure: Diagnostic popup catching 'SocketException' with pinpointed server/port info.
+     * Offline Cache: Displaying last known good data when DB is unreachable.
+     * Multi-Account Isolation: student_101 data must not be visible to student_102 on the same device.
+
+3. STUDENT DASHBOARD (COMMAND CENTER)
+   - Attributes:
+     * Dynamic Greeting: Displays 'student_name' from PostgreSQL.
+     * Upcoming Deadlines: Top 3 assignments sorted by remaining time (Days/Hours/Minutes).
+     * To-Do List: Adding tasks, toggling completion, and course linkage.
+     * Pull-to-Refresh: Manual trigger for database synchronization.
+
+4. DYNAMIC TIMETABLE (DATE-WISE)
+   - Attributes:
+     * Weekly Strip: Navigating weeks via chevrons, direct date selection via picker.
+     * Official Slots: Read-only status (🏢 icon), cannot be edited/deleted.
+     * Personal Slots: Manual creation via Time Slider, swipe-to-delete (Right), swipe-to-edit (Left).
+     * Attendance Marking: Manual marking for Personal slots vs. Read-only for Official slots.
+
+5. UNIFIED STATISTICS (PERFORMANCE ANALYTICS)
+   - Attributes:
+     * Overall Stats: Calculated CGPA and Total Attendance percentage.
+     * Attendance Breakdown: Subject-wise progress bars based on classes happened till now.
+     * Grade Overview: Current letter grade (O, A+, etc.) from 'registrations' table.
+
+6. COURSE MANAGEMENT
+   - Attributes:
+     * Course Details: Unified view of marks, notes, and attendance.
+     * Academic Marks: Read-only display of 'Internal' and 'Mid-term' for Organizational courses.
+     * Target Goal: Manual entry of target percentage for both course types.
+     * Personal Courses: Full CRUD capability (Create, Read, Update, Delete).
+
+7. ATTENDANCE HISTORY & AUDIT TRAIL
+   - Attributes:
+     * Chronological List: Every session since semester start.
+     * Present/Absent Logic: Matches 'attendance' table (Present) or lack thereof (Absent).
+     * Type Differentiation: Labels for 'Official Class' vs. 'Personal Study Hour'.
+
+8. CAMPUS EVENTS
+   - Attributes:
+     * Tabbed Navigation: 'All Events' vs. 'My Registrations'.
+     * Registration Flow: Toggling status and instant UI update.
+     * Capacity Logic: Handling 'Full' events and registration deadlines.
+
+9. NAVIGATION (STUDENT ROLE)
+   - Attributes:
+     * Side Ball Handle: Role-specific icons, relocatable vertical dragging (1:1 finger follow).
+     * Bottom Bar: Home, Library, Central Analytics Button, Updates, Settings.
+     * Theme Toggle: System-wide Light/Dark mode transition.
+
+10. ERROR HANDLING & UI STABILITY
+    - Attributes:
+      * Popup Overflows: Scrolling capability in error dialogs.
+      * Empty States: 'EmptyStateView' with action buttons for all list-based modules.
+      * Null-Safety: Fallback UI (e.g., 'Unknown Course') for malformed DB records.
