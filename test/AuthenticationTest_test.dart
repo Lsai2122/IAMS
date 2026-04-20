@@ -59,7 +59,7 @@ class FakeAuthService {
 }
 
 void main() {
-  group('🔐 Fake Authentication Integrated Workflow', () {
+  group('🔐Authentication Integrated Workflow', () {
     late FakeAuthService auth;
 
     setUp(() {
