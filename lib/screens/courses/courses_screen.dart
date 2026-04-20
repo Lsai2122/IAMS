@@ -54,15 +54,23 @@ class _CoursesScreenState extends State<CoursesScreen> {
             TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
             ElevatedButton(
               onPressed: () {
-                if (titleController.text.isNotEmpty && codeController.text.isNotEmpty) {
-                  academicController.registerPersonalCourse(
-                    code: codeController.text,
-                    title: titleController.text,
-                    credits: int.tryParse(creditsController.text) ?? 0,
-                    color: selectedColor,
+                final title = titleController.text.trim();
+                final code = codeController.text.trim();
+                
+                if (title.isEmpty || code.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Course title and code cannot be empty')),
                   );
-                  Navigator.pop(context);
+                  return;
                 }
+
+                academicController.registerPersonalCourse(
+                  code: code,
+                  title: title,
+                  credits: int.tryParse(creditsController.text) ?? 0,
+                  color: selectedColor,
+                );
+                Navigator.pop(context);
               },
               child: const Text('Add'),
             ),
@@ -121,7 +129,7 @@ class _CoursesScreenState extends State<CoursesScreen> {
                   leading: CircleAvatar(
                     backgroundColor: courseColor.withOpacity(0.1),
                     child: Text(
-                      (course['code'] as String? ?? '?')[0], 
+                      (course['code'] as String? ?? '?').isNotEmpty ? (course['code'] as String)[0] : '?', 
                       style: TextStyle(color: courseColor, fontWeight: FontWeight.bold)
                     ),
                   ),
