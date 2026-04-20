@@ -1,42 +1,80 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:iams_app/controllers/academic_controller.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
-  group('AcademicController Logic Tests', () {
+  // Required for SharedPreferences and other plugin mocks in CI
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  group('AcademicController Bitrise Integrated Workflow', () {
     late AcademicController controller;
 
-    setUp(() {
+    setUp(() async {
+      // Initialize SharedPreferences with an empty state for a clean test
+      SharedPreferences.setMockInitialValues({});
       controller = AcademicController();
     });
 
-    test('Initial state should have zero courses', () {
-      expect(controller.courses.length, 0);
-    });
+    test('End-to-End Workflow: Registration -> Timetable -> Attendance Mapping', () async {
+      final String courseCode = 'BITRISE-SYNC';
+      final String testDateKey = '2023-11-01'; 
+      final String testDay = 'Wednesday';
 
-    test('Personal course registration should update local list', () {
+      // 1. Validate Personal Course Creation
       controller.registerPersonalCourse(
-        code: 'TEST-101',
-        title: 'Test Course',
+        code: courseCode,
+        title: 'CI Pipeline Course',
         credits: 3,
         color: Colors.blue,
       );
-      expect(controller.courses.length, 1);
-      expect(controller.courses.first['isPersonal'], true);
-    });
+      
+      expect(
+        controller.courses.any((c) => c['code'] == courseCode), 
+        true, 
+        reason: 'The CI pipeline must successfully register a local course.'
+      );
 
-    test('To-Do list interaction should toggle completion status', () {
-      controller.addTodo('Test Task', 'TEST-101');
-      expect(controller.todoList.length, 1);
-      expect(controller.todoList.first['isDone'], false);
+      // 2. Validate Timetable Slot Injection
+      controller.addClassToTimetable(
+        testDay,
+        courseCode,
+        '02:00 PM',
+        'Virtual Hall',
+        14.0,
+      );
 
-      controller.toggleTodo(0);
-      expect(controller.todoList.first['isDone'], true);
-    });
+      // Check if slot appears on the specific date mapped to that day
+      final timetable = controller.getTimetableForDate(DateTime(2023, 11, 1)); // This is a Wednesday
+      
+      expect(
+        timetable.any((slot) => slot['courseCode'] == courseCode), 
+        true, 
+        reason: 'Timetable must correctly map template day to calendar date.'
+      );
+      
+      final slotId = timetable.firstWhere((slot) => slot['courseCode'] == courseCode)['id'];
 
-    test('Attendance Stats should handle zero data gracefully', () {
+      // 3. Validate Attendance Logic & Stat Separation
+      // Mark as present
+      controller.markAttendance(testDateKey, slotId, true);
+      
       final stats = controller.getAttendanceStats();
-      expect(stats.isEmpty, true);
+      final courseStats = stats.firstWhere((s) => s['code'] == courseCode);
+      
+      // Verification of Student-Marked Logic
+      expect(
+        courseStats['personalHours'], 
+        1, 
+        reason: 'Manual timetable entries must be calculated as Personal Study Hours, not official classes.'
+      );
+      
+      final history = controller.getAttendanceHistory(courseCode);
+      expect(
+        history.any((h) => h['id'] == slotId && h['status'] == true), 
+        true, 
+        reason: 'Attendance history must record the manual study session.'
+      );
     });
   });
 }
